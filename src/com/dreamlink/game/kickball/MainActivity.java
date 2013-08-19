@@ -24,7 +24,7 @@ import android.widget.Toast;
 
 public class MainActivity extends Activity implements BallCallback,
 		ProtocolDecoder.Callback {
-	private final static String TAG = "SurfaceViewTestActivity";
+	private final static String TAG = "MainActivity";
 	private GameView mGameView;
 	private ProtocolDecoder mProtocolDecoder;
 	private ServiceConnection connection;
@@ -58,7 +58,15 @@ public class MainActivity extends Activity implements BallCallback,
 		};
 		filter = new Intent(INTENT_STRING);
 		app_id = getAppID();
-		bindService(filter, connection, Context.BIND_AUTO_CREATE);
+		boolean result = bindService(filter, connection,
+				Context.BIND_AUTO_CREATE);
+		if (result) {
+			Log.d(TAG, "bind service success.");
+		} else {
+			Toast.makeText(this, "Bind communication service fail.",
+					Toast.LENGTH_LONG).show();
+			Log.e(TAG, "bind service fail.");
+		}
 	}
 
 	// Remote service begin

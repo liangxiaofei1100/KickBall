@@ -264,7 +264,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		float x = ensureX(mBall.getCenterX(), mBall.getRadius(), mScreenWidth);
 		float y = ensureBallY(mBall.getCenterY(), mBall.getRadius(),
 				mScreenHeight);
-		Log.d(TAG, "drawBall x = " + x + ", y = " + y);
 		canvas.drawBitmap(mBall.getPicture(), x, y, mPaint);
 	}
 
@@ -372,11 +371,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 			moveBallToCompetitor(mBall.getCenterX(), mBall.getCenterY(),
 					mBall.getSpeedX(), mBall.getSpeedY());
 		}
-		Log.d(TAG,
-				"moveBall() from (" + mBall.getCenterX() + ", "
-						+ mBall.getCenterY() + "), to ("
-						+ (mBall.getCenterX() + mBall.getSpeedX()) + ", "
-						+ (mBall.getCenterY() + mBall.getSpeedY()) + ").");
 		mBall.setCenterX(mBall.getCenterX() + mBall.getSpeedX());
 		mBall.setCenterY(mBall.getCenterY() + mBall.getSpeedY());
 
