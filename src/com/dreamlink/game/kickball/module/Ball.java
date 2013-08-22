@@ -45,7 +45,6 @@ public class Ball implements Circle {
 	public void setSpeed(float speedX, float speedY) {
 		mSpeedX = speedX;
 		mSpeedY = speedY;
-		Log.d("111", "SetSpeed x = " + speedX + ", y= " + speedY);
 	}
 
 	@Override

@@ -1,12 +1,11 @@
 package com.dreamlink.game.kickball.net;
 
 import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
+import com.dreamlink.aidl.User;
 import com.dreamlink.game.kickball.util.ArrayUtil;
 
 import android.util.Log;
@@ -19,7 +18,7 @@ public class ProtocolDecoder {
 		mCallback = callback;
 	}
 
-	public void decode(byte[] data) {
+	public void decode(byte[] data, User sendUser) {
 		if (data.length < Protocol.TYPE_LENGTH) {
 			Log.e(TAG, "decode() data length error." + data.length);
 			return;
@@ -41,12 +40,40 @@ public class ProtocolDecoder {
 			Log.d(TAG, "TYPE_THE_PLAYER_QUIT");
 			handleMessageQuit(data);
 			break;
-
+		case Protocol.TYPE_THE_PLAYER_REPLAY:
+			Log.d(TAG, "TYPE_THE_PLAYER_REPLAY");
+			handMessageReplay(data);
+		case Protocol.TYPE_JOIN_GAME:
+			Log.d(TAG, "TYPE_JOIN_GAME");
+			handMessageJoin(data, sendUser);
+			break;
+		case Protocol.TYPE_SEARCH_OTHER_PLAYERS:
+			Log.d(TAG, "TYPE_JOIN_GAME");
+			handMessageSearchPlayers(data, sendUser);
+			break;
 		default:
 			Log.d(TAG, "Unkown message type: " + msgType);
 			break;
 		}
 
+	}
+
+	private void handMessageSearchPlayers(byte[] data, User sendUser) {
+		if (mCallback != null) {
+			mCallback.onSearchRequest(sendUser);
+		}
+	}
+
+	private void handMessageJoin(byte[] data, User sendUser) {
+		if (mCallback != null) {
+			mCallback.onPlayerJoin(sendUser);
+		}
+	}
+
+	private void handMessageReplay(byte[] data) {
+		if (mCallback != null) {
+			mCallback.onPlayerReplay();
+		}
 	}
 
 	private void handleMessageQuit(byte[] data) {
@@ -89,10 +116,18 @@ public class ProtocolDecoder {
 	}
 
 	public interface Callback {
-		void onBallcome(float x, float speedX, float speedY);
+		void onBallcome(float xPercentInScreenWidth,
+				float speedXPercentInScreenWidth,
+				float speedYPercentInScreenHeight);
 
 		void onYouWinOnePoint();
 
 		void onPlayerQuit();
+
+		void onPlayerReplay();
+
+		void onPlayerJoin(User player);
+
+		void onSearchRequest(User sendUser);
 	}
 }

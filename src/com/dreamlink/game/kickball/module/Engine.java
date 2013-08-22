@@ -1,5 +1,7 @@
 package com.dreamlink.game.kickball.module;
 
+import java.util.Random;
+
 public class Engine {
 
 	/**
@@ -7,7 +9,8 @@ public class Engine {
 	 */
 	public static final float RESISTANCE_ACCELERATION_PIXEL_PER_SECOND = 1;
 
-	public static final float MAX_SPEED_PIXEL_PER_SECOND = 8;
+	public static final float MAX_SPEED_PIXEL_PER_SECOND = 15;
+	private static Random mRandom = new Random();
 
 	/**
 	 * If c1 collision with c2 return true, else return false.
@@ -42,19 +45,32 @@ public class Engine {
 		c1SpeedX += c2SpeedX * -1;
 		c1SpeedY += c2SpeedY * -1;
 
-		float c2SpeedX1 = (c2X - c1X) * (c2X - c1X)
-				/ ((c2X - c1X) * (c2X - c1X) + (c2Y - c1Y) * (c2Y - c1Y))
-				* c1SpeedX;
-		int directionY = c2Y > c1Y ? 1 : -1;
-		float c2SpeedY1 = c2SpeedX1 * (c2Y - c1Y) / (c2X - c1X) * directionY;
-
-		float c2SpeedX2 = (c2Y - c1Y) * (c2Y - c1Y)
-				/ ((c2X - c1X) * (c2X - c1X) + (c2Y - c2X) * (c2Y - c2X))
-				* c1SpeedY;
-		float c2SpeedY2 = c2SpeedX2 * (c2X - c1X) / (c2Y - c1Y) * directionY;
-
-		c2SpeedX = Math.min(c2SpeedX1 + c2SpeedX2, MAX_SPEED_PIXEL_PER_SECOND);
-		c2SpeedY = Math.min(c2SpeedY1 + c2SpeedY2, MAX_SPEED_PIXEL_PER_SECOND);
+		// float c2SpeedX1 = (c2X - c1X) * (c2X - c1X)
+		// / ((c2X - c1X) * (c2X - c1X) + (c2Y - c1Y) * (c2Y - c1Y))
+		// * c1SpeedX;
+		// int directionY = c2Y > c1Y ? 1 : -1;
+		// float c2SpeedY1 = c2SpeedX1 * (c2Y - c1Y) / (c2X - c1X) * directionY;
+		//
+		// float c2SpeedX2 = (c2Y - c1Y) * (c2Y - c1Y)
+		// / ((c2X - c1X) * (c2X - c1X) + (c2Y - c2X) * (c2Y - c2X))
+		// * c1SpeedY;
+		// float c2SpeedY2 = c2SpeedX2 * (c2X - c1X) / (c2Y - c1Y) * directionY;
+		//
+		// c2SpeedX = Math.min(c2SpeedX1 + c2SpeedX2,
+		// MAX_SPEED_PIXEL_PER_SECOND);
+		// c2SpeedY = Math.min(c2SpeedY1 + c2SpeedY2,
+		// MAX_SPEED_PIXEL_PER_SECOND);
+		// TODO
+		// Calculation has problems. Currently use simple method.
+		if (mRandom.nextBoolean()) {
+			c2SpeedX = 10;
+		} else {
+			c2SpeedX = -10;
+		}
+		if (c1SpeedY > 0) {
+			c1SpeedY = c1SpeedY * -1;
+		}
+		c2SpeedY = Math.min(c1SpeedY, MAX_SPEED_PIXEL_PER_SECOND);
 		c2.setSpeed(c2SpeedX, c2SpeedY);
 	}
 
@@ -66,6 +82,10 @@ public class Engine {
 	public static double calculateDistance(float x1, float y1, float x2,
 			float y2) {
 		return Math.sqrt((x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2));
+	}
+
+	public static boolean randomBoolean() {
+		return mRandom.nextBoolean();
 	}
 
 }

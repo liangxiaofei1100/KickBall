@@ -9,7 +9,7 @@ public class DrawThread extends Thread {
 	private GameView mGameView;
 	private SurfaceHolder mSurfaceHolder;
 	private boolean mDraw;
-	private static final int SLEEP_TIME = 20;
+	private static final int SLEEP_TIME = 33;
 
 	public DrawThread(GameView gameView, SurfaceHolder surfaceHolder) {
 		setName("Kick ball DrawThread");
@@ -23,13 +23,15 @@ public class DrawThread extends Thread {
 
 	@Override
 	public void run() {
-
+		long startTime = 0;
+		Canvas canvas = null;
 		while (mDraw) {
-			Canvas canvas = null;
+			startTime = System.currentTimeMillis();
 			try {
 				canvas = mSurfaceHolder.lockCanvas();
 				mGameView.drawGame(canvas);
-				Thread.sleep(SLEEP_TIME);
+				Thread.sleep(Math.max(0,
+						SLEEP_TIME - System.currentTimeMillis() - startTime));
 			} catch (Exception e) {
 				Log.e(TAG, e.toString());
 			} finally {

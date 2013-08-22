@@ -4,15 +4,16 @@ import com.dreamlink.game.kickball.module.Ball;
 import com.dreamlink.game.kickball.module.Engine;
 import com.dreamlink.game.kickball.module.Player;
 import com.dreamlink.game.kickball.util.DisplayUtil;
+import com.dreamlink.game.kickball.util.DrawTextUtil;
 import com.dreamlink.game.kickball.util.Log;
 
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
-import android.graphics.Color;
-import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
@@ -24,6 +25,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
 	private SurfaceHolder mSurfaceHolder;
 	private Paint mPaint;
+
+	private Paint mTextPaint;
 
 	// Ball bitmap
 	private Bitmap mBallBitmap = BitmapFactory.decodeResource(getResources(),
@@ -66,13 +69,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 					.decodeResource(getResources(), R.drawable.score_red_6),
 			BitmapFactory
 					.decodeResource(getResources(), R.drawable.score_red_7) };
-
+	private String mWaitingForPlayerString = getResources().getString(
+			R.string.waiting_for_player);
 	// Ball
 	private Ball mBall;
 	private Player mPlayer;
 
 	// Score
-	private int mSoreWine = 7;
+	private static final int SCORE_WIN = 7;
 	private int mScoreOfCompetitor = 0;
 	private int mScoreOfMine = 0;
 	private boolean mDrawScoreRead = false;
@@ -83,7 +87,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 	private long mLastTouchedMovingTime;
 
 	private Context mContext;
-	private BallCallback mBallCallback;
+	private BallCallback mCallback;
 
 	private float mScreenWidth;
 	private float mScreenHeight;
@@ -92,6 +96,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
 	private boolean mStopBallMove = false;
 	private boolean mIsBallMoving = false;
+
+	private boolean mIsGameOver = false;
+	private boolean mIsCompetitorJoined = false;
 
 	public GameView(Context context) {
 		super(context);
@@ -112,6 +119,14 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		mScreenWidth = DisplayUtil.getScreenWidth(context);
 		mScreenHeight = DisplayUtil.getScreenHeight(context);
 
+		mTextPaint = new Paint();
+		mTextPaint.setAntiAlias(true);
+		mTextPaint.setFilterBitmap(true);
+		mTextPaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.SRC));
+		mTextPaint.setTextSize(mScreenWidth * 2 / 3
+				/ mWaitingForPlayerString.length());
+		mTextPaint.setTextAlign(Paint.Align.CENTER);
+		
 		resetBallAndPlayer();
 	}
 
@@ -140,6 +155,24 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		}
 		mIsBallMoving = false;
 		mIsBallTouched = false;
+	}
+
+	public void startGame(boolean holdTheBall) {
+		mIsCompetitorJoined = true;
+		resetGame(holdTheBall);
+		// TODO maybe show start animation.
+	}
+
+	public void resetGame(boolean holdTheBall) {
+		resetBallAndPlayer();
+		mScoreOfCompetitor = 0;
+		mScoreOfMine = 0;
+		mIsGameOver = false;
+		if (!holdTheBall) {
+			// Move the ball to a position we can not see.
+			mBall.setCenterX(0);
+			mBall.setCenterY(0 - mBall.getRadius() * 2);
+		}
 	}
 
 	public GameView(Context context, AttributeSet attrs) {
@@ -192,8 +225,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 					float speedX = (x - mPlayer.getCenterX()) / t * 20;
 					float speedY = (y - mPlayer.getCenterY()) / t * 20;
 					mPlayer.setSpeed(speedX, speedY);
-					Log.d(TAG, " player speed x = " + mPlayer.getSpeedX()
-							+ ", speed y = " + mPlayer.getSpeedY());
 				}
 				mPlayer.setCenterX(x);
 				mPlayer.setCenterY(y);
@@ -228,28 +259,39 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		drawBackground(canvas);
 		drawGoal(canvas);
 		drawScore(canvas, mScoreOfCompetitor, mScoreOfMine, mDrawScoreRead);
-		drawBall(canvas);
-		drawPlayer(canvas);
+		if (!mIsCompetitorJoined) {
+			drawWaitForPlayerNotice(canvas);
+		}
 
-		if (Engine.detectCollision(mPlayer, mBall)) {
-			Log.d(TAG,
-					"Before collision. ball speed x = " + mBall.getSpeedX()
-							+ " speed y = " + mBall.getSpeedY()
-							+ " player speed x = " + mPlayer.getSpeedX()
-							+ ", speed y = " + mPlayer.getSpeedY());
-			Engine.circleCollide(mPlayer, mBall);
-			Log.d(TAG,
-					"After collision. ball speed x = " + mBall.getSpeedX()
-							+ " speed y = " + mBall.getSpeedY()
-							+ " player speed x = " + mPlayer.getSpeedX()
-							+ ", speed y = " + mPlayer.getSpeedY());
-			while (Engine.detectCollision(mPlayer, mBall)) {
-				moveBall();
-			}
-			if (!mIsBallMoving) {
-				startMove();
+		if (!mIsGameOver) {
+			drawBall(canvas);
+			drawPlayer(canvas);
+
+			if (Engine.detectCollision(mPlayer, mBall)) {
+				Log.d(TAG,
+						"Before collision. ball speed x = " + mBall.getSpeedX()
+								+ " speed y = " + mBall.getSpeedY()
+								+ " player speed x = " + mPlayer.getSpeedX()
+								+ ", speed y = " + mPlayer.getSpeedY());
+				Engine.circleCollide(mPlayer, mBall);
+				Log.d(TAG,
+						"After collision. ball speed x = " + mBall.getSpeedX()
+								+ " speed y = " + mBall.getSpeedY()
+								+ " player speed x = " + mPlayer.getSpeedX()
+								+ ", speed y = " + mPlayer.getSpeedY());
+				while (Engine.detectCollision(mPlayer, mBall)) {
+					moveBall();
+				}
+				if (!mIsBallMoving) {
+					startMove();
+				}
 			}
 		}
+	}
+
+	private void drawWaitForPlayerNotice(Canvas canvas) {
+		canvas.drawText(mWaitingForPlayerString, mScreenWidth / 2,
+				DrawTextUtil.getFontHeight(mTextPaint), mTextPaint);
 	}
 
 	private void drawPlayer(Canvas canvas) {
@@ -349,7 +391,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		if (mBall.getCenterX() + mBall.getRadius() >= mScreenWidth
 				|| mBall.getCenterX() - mBall.getRadius() <= 0) {
 			// Ball is coming into collision with with screen left or right.
-			// Change the ball's speed direction;
+			// Change the ball's speedX direction;
 			mBall.setSpeed(mBall.getSpeedX() * -1, mBall.getSpeedY());
 		}
 
@@ -358,7 +400,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		if (mBall.getCenterY() + mBall.getRadius() >= mScreenHeight
 				&& (mBall.getCenterX() <= goalLeft || mBall.getCenterX() >= goalRight)) {
 			// Ball is coming into collision with with screen bottom and does
-			// not in the goal. Change the ball's speed direction;
+			// not in the goal. Change the ball's speedY direction;
 			mBall.setSpeed(mBall.getSpeedX(), mBall.getSpeedY() * -1);
 		} else if (mBall.getCenterY() + mBall.getRadius() >= mScreenHeight
 				&& mBall.getCenterX() > goalLeft
@@ -366,10 +408,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 			// Ball is into the goal, we lose one point.
 			loseOneGoal();
 		} else if (mBall.getCenterY() - mBall.getRadius() <= 0
-				&& mBall.getSpeedY() < 0) {
+				&& mBall.getSpeedY() < 0 && mIsCompetitorJoined) {
 			// Ball is moving out into the competitor's screen.
 			moveBallToCompetitor(mBall.getCenterX(), mBall.getCenterY(),
 					mBall.getSpeedX(), mBall.getSpeedY());
+		} else if (!mIsCompetitorJoined
+				&& mBall.getCenterY() - mBall.getRadius() <= 0) {
+			// Competitor is not joined, play with myself, so do not let ball
+			// out of screen.
+			mBall.setSpeed(mBall.getSpeedX(), mBall.getSpeedY() * -1);
 		}
 		mBall.setCenterX(mBall.getCenterX() + mBall.getSpeedX());
 		mBall.setCenterY(mBall.getCenterY() + mBall.getSpeedY());
@@ -377,53 +424,83 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 	}
 
 	private void loseOneGoal() {
+		Log.d(TAG, "loseOneGoal");
 		resetBallAndPlayer();
 		mScoreOfCompetitor++;
-		if (mScoreOfCompetitor >= mSoreWine) {
+		if (mScoreOfCompetitor > SCORE_WIN) {
 			Log.d(TAG, "We lose.");
+			mScoreOfCompetitor = SCORE_WIN;
 			loseTheGame();
 		}
-
-		if (mBallCallback != null) {
-			mBallCallback.onLoseOneGoal();
+		if (mCallback != null) {
+			mCallback.onLoseOneGoal();
 		}
 	}
 
+	/**
+	 * The competitor lose one goal. So we win one goal.
+	 */
 	public void winOneGoal() {
+		Log.d(TAG, "winOneGoal");
 		mScoreOfMine++;
-		if (mScoreOfMine >= mSoreWine) {
+		if (mScoreOfMine > SCORE_WIN) {
 			Log.d(TAG, "We win.");
+			mScoreOfMine = SCORE_WIN;
 			winTheGame();
 		}
 	}
 
 	private void winTheGame() {
-		mScoreOfCompetitor = 0;
-		mScoreOfMine = 0;
+		mIsGameOver = true;
+		if (mCallback != null) {
+			mCallback.onGameOver(GameOverView.GAME_OVER_WIN);
+		}
 	}
 
 	private void loseTheGame() {
-		mScoreOfCompetitor = 0;
-		mScoreOfMine = 0;
+		mIsGameOver = true;
+		if (mCallback != null) {
+			mCallback.onGameOver(GameOverView.GAME_OVER_LOSE);
+		}
 	}
 
 	private void moveBallToCompetitor(float x, float y, float speedX,
 			float speedY) {
+		// When ball is moving out completely, send message to competitor.
 		if (y <= 0 - mBall.getRadius() * 2) {
+			// Stop ball moving and stay in position that we cannot see it.
 			mBall.setCenterY(0 - mBall.getRadius() * 2 - 1);
 			mBall.setSpeed(0, 0);
-			if (mBallCallback != null) {
-				mBallCallback.onBallOut(x, speedX, speedY);
+			if (mIsBallMoving) {
+				stopMove();
+			}
+			if (mCallback != null) {
+				Log.d(TAG,
+						"moveBallToCompetitor() send message to competitor x = "
+								+ x + ", speedX = " + speedX + ", speedY = "
+								+ speedY);
+				mCallback.onBallOut(x / mScreenWidth, speedX / mScreenWidth,
+						speedY / mScreenHeight);
 			}
 		}
 	}
 
-	public void ballComesFromCompetitor(float x, float speedX, float speedY) {
-		Log.d(TAG, "ballComesFromCompetitor x = " + x + ", speedX = " + speedX
-				+ ", speedY = " + speedY);
-		mBall.setCenterX(x);
+	public void ballComesFromCompetitor(float xPercentInScreenWidth,
+			float speedXPercentInScreenWidth, float speedYPercentInScreenHeight) {
+		Log.d(TAG, "ballComesFromCompetitor x = " + xPercentInScreenWidth
+				+ ", speedX = " + speedXPercentInScreenWidth + ", speedY = "
+				+ speedYPercentInScreenHeight);
+		mBall.setCenterX(xPercentInScreenWidth * mScreenWidth);
 		mBall.setCenterY(0 - mBall.getRadius() * 2);
-		mBall.setSpeed(speedX, speedY);
+		mBall.setSpeed(speedXPercentInScreenWidth * mScreenWidth,
+				speedYPercentInScreenHeight * mScreenHeight);
+		if (!mIsBallMoving) {
+			startMove();
+		}
+	}
+
+	private void stopMove() {
+		mStopBallMove = true;
 	}
 
 	private void startMove() {
@@ -435,6 +512,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 				while (!mStopBallMove && mBall.getSpeedX() != 0
 						&& mBall.getSpeedY() != 0) {
 					moveBall();
+					try {
+						Thread.sleep(20);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
 				}
 				mIsBallMoving = false;
 			};
@@ -443,12 +525,38 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 	}
 
 	public void setBallCallback(BallCallback callback) {
-		mBallCallback = callback;
+		mCallback = callback;
 	}
 
+	/**
+	 * Be careful. These callbacks is not run in UI Thread.
+	 * 
+	 */
 	public interface BallCallback {
-		void onBallOut(float x, float speedX, float speedY);
+		/**
+		 * The ball is moving out to the competitor.
+		 * 
+		 * Because the competitor screen size maybe different from us, so we
+		 * should use the relative value not the absolute value.
+		 * 
+		 * @param xPercentInScreenWidth
+		 * @param speedXPercentInScreenWidth
+		 * @param speedYPercentInScreenHeight
+		 */
+		void onBallOut(float xPercentInScreenWidth,
+				float speedXPercentInScreenWidth,
+				float speedYPercentInScreenHeight);
 
+		/**
+		 * We lose one goal.
+		 */
 		void onLoseOneGoal();
+
+		/**
+		 * The game is over.
+		 * 
+		 * @param result
+		 */
+		void onGameOver(int result);
 	}
 }
