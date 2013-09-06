@@ -147,10 +147,10 @@ public class MainActivity extends Activity implements BallCallback,
 			} else {
 				holdTheBall = false;
 			}
-			mGameView.startGame(holdTheBall);
+			mGameView.startGame(holdTheBall ,true);
 		} else {
 			Log.e(TAG, "startGame() error, player count: " + mPlayers.size());
-			mGameView.startGame(true);
+			mGameView.startGame(true, false);
 		}
 	}
 

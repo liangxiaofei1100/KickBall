@@ -157,8 +157,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		mIsBallTouched = false;
 	}
 
-	public void startGame(boolean holdTheBall) {
-		mIsCompetitorJoined = true;
+	public void startGame(boolean holdTheBall, boolean isCompetitorJoined) {
+		mIsCompetitorJoined = isCompetitorJoined;
 		resetGame(holdTheBall);
 		// TODO maybe show start animation.
 	}
