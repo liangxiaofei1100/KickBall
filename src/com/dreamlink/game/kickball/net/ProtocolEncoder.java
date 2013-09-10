@@ -4,7 +4,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 
-import com.dreamlink.game.kickball.util.ArrayUtil;
+import com.dreamlink.communication.lib.util.ArrayUtil;
+
 
 public class ProtocolEncoder {
 

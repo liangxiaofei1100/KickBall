@@ -3,9 +3,10 @@ package com.dreamlink.game.kickball;
 import com.dreamlink.game.kickball.module.Ball;
 import com.dreamlink.game.kickball.module.Engine;
 import com.dreamlink.game.kickball.module.Player;
-import com.dreamlink.game.kickball.util.DisplayUtil;
 import com.dreamlink.game.kickball.util.DrawTextUtil;
 import com.dreamlink.game.kickball.util.Log;
+
+import com.dreamlink.communication.lib.util.DisplayUtil;
 
 import android.content.Context;
 import android.graphics.Bitmap;
@@ -126,7 +127,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 		mTextPaint.setTextSize(mScreenWidth * 2 / 3
 				/ mWaitingForPlayerString.length());
 		mTextPaint.setTextAlign(Paint.Align.CENTER);
-		
+
 		resetBallAndPlayer();
 	}
 

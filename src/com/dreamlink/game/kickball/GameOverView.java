@@ -1,6 +1,6 @@
 package com.dreamlink.game.kickball;
 
-import com.dreamlink.game.kickball.util.DisplayUtil;
+import com.dreamlink.communication.lib.util.DisplayUtil;
 import com.dreamlink.game.kickball.util.DrawTextUtil;
 
 import android.content.Context;

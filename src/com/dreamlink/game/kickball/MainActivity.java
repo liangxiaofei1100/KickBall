@@ -3,9 +3,11 @@ package com.dreamlink.game.kickball;
 import java.util.List;
 import java.util.Vector;
 
-import com.dreamlink.aidl.Communication;
-import com.dreamlink.aidl.OnCommunicationListenerExternal;
-import com.dreamlink.aidl.User;
+import com.dreamlink.communication.aidl.User;
+import com.dreamlink.communication.lib.CommunicationManager;
+import com.dreamlink.communication.lib.CommunicationManager.OnCommunicationListener;
+import com.dreamlink.communication.lib.CommunicationManager.OnConnectionChangeListener;
+import com.dreamlink.communication.lib.util.AppUtil;
 import com.dreamlink.game.kickball.GameOverView.GameOverCallBack;
 import com.dreamlink.game.kickball.GameView.BallCallback;
 import com.dreamlink.game.kickball.net.ProtocolDecoder;
@@ -14,24 +16,17 @@ import com.dreamlink.game.kickball.util.Log;
 
 import android.os.Bundle;
 import android.os.Handler;
-import android.os.IBinder;
 import android.os.Message;
-import android.os.RemoteException;
 import android.app.Activity;
-import android.content.ComponentName;
 import android.content.Context;
-import android.content.Intent;
-import android.content.ServiceConnection;
-import android.content.pm.ActivityInfo;
-import android.content.pm.PackageManager;
-import android.content.pm.PackageManager.NameNotFoundException;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Toast;
 
 public class MainActivity extends Activity implements BallCallback,
-		ProtocolDecoder.Callback, GameOverCallBack {
+		ProtocolDecoder.Callback, GameOverCallBack, OnConnectionChangeListener,
+		OnCommunicationListener {
 	private final static String TAG = "MainActivity";
 	private Context mContext;
 	private GameView mGameView;
@@ -93,6 +88,9 @@ public class MainActivity extends Activity implements BallCallback,
 		mContext = this;
 		setContentView(R.layout.activity_main);
 
+		mCommunicationManager = new CommunicationManager(
+				getApplicationContext());
+
 		mGameView = (GameView) findViewById(R.id.gameView);
 		mGameView.setBallCallback(this);
 
@@ -101,8 +99,10 @@ public class MainActivity extends Activity implements BallCallback,
 
 		mProtocolDecoder = new ProtocolDecoder(this);
 
-		mAppId = getAppID();
-		boolean result = connectCommunicationService();
+		mAppId = AppUtil.getAppID(this);
+
+		boolean result = mCommunicationManager.connectCommunicatonService(this,
+				this, mAppId);
 		if (result) {
 			Log.d(TAG, "connectCommunicationService success.");
 		} else {
@@ -114,7 +114,7 @@ public class MainActivity extends Activity implements BallCallback,
 
 	@Override
 	protected void onDestroy() {
-		disconnectService();
+		mCommunicationManager.disconnectCommunicationService();
 		super.onDestroy();
 	}
 
@@ -147,65 +147,22 @@ public class MainActivity extends Activity implements BallCallback,
 			} else {
 				holdTheBall = false;
 			}
-			mGameView.startGame(holdTheBall ,true);
+			mGameView.startGame(holdTheBall, true);
 		} else {
 			Log.e(TAG, "startGame() error, player count: " + mPlayers.size());
 			mGameView.startGame(true, false);
 		}
 	}
 
-	/**
-	 * Connected to communication service.
-	 */
-	private void onCommunicationReady() {
-		if (!checkCommunicationConnection()) {
-			Toast.makeText(mContext, "无网络连接，请先建立连接后再启动游戏。", Toast.LENGTH_LONG).show();
-		}
-		// Search other players.
-		byte[] searchData = ProtocolEncoder.encodeSearchOtherPlayers();
-		sendMessageToAllCompetitor(searchData);
-		// Tell other players we join the game
-		byte[] joinData = ProtocolEncoder.encodeJoinGame();
-		sendMessageToAllCompetitor(joinData);
-
-		mLocalPlayer = getLocalUser();
-		if (mLocalPlayer != null) {
-			addPlayer(mLocalPlayer);
-		} else {
-			Log.e(TAG, "onCommunicationReady get local user fail. ");
-		}
-	}
-
 	private boolean checkCommunicationConnection() {
 		boolean result = true;
-		if (mCommunication == null) {
-			result = false;
+		List<User> users = mCommunicationManager.getAllUser();
+		if (users != null && users.size() > 1) {
+			result = true;
 		} else {
-			List<User> users = null;
-			try {
-				users = mCommunication.getAllUser();
-			} catch (RemoteException e) {
-				e.printStackTrace();
-			}
-			if (users != null && users.size() > 1) {
-				result = true;
-			} else {
-				result = false;
-			}
+			result = false;
 		}
 		return result;
-	}
-
-	private User getLocalUser() {
-		User user = null;
-		if (mCommunication != null) {
-			try {
-				user = mCommunication.getLocalUser();
-			} catch (RemoteException e) {
-				e.printStackTrace();
-			}
-		}
-		return user;
 	}
 
 	// Callback of Game view begin.
@@ -329,107 +286,56 @@ public class MainActivity extends Activity implements BallCallback,
 	// Call back of protocol decoder end
 
 	// Communication Service begin
-	private final String INTENT_STRING = "com.dreamlink.communication.ComService";
 	private int mAppId;
-	private Communication mCommunication;
-	private ServiceConnection mServiceConnection;
-
-	private int getAppID() {
-		try {
-			ActivityInfo info = this.getPackageManager().getActivityInfo(
-					getComponentName(), PackageManager.GET_META_DATA);
-			return info.metaData.getInt("APPID");
-		} catch (NameNotFoundException e) {
-			e.printStackTrace();
-			Log.e(TAG, "Get App ID error!");
-		}
-		return 0;
-	}
+	private CommunicationManager mCommunicationManager;
 
 	private void sendMessageToSingleCompetitor(byte[] data, User receiver) {
-		sendMessage(data, receiver);
+		mCommunicationManager.sendMessage(data, receiver);
 	}
 
 	private void sendMessageToAllCompetitor(byte[] data) {
-		sendMessage(data, null);
+		mCommunicationManager.sendMessageToAll(data);
 	}
 
-	private void sendMessage(byte[] data, User receiver) {
-		if (mCommunication == null) {
-			Log.e(TAG, "sendMessageToCompetitor fail, communication is null");
-			return;
-		}
-		try {
-			mCommunication.sendMessage(data, mAppId, null);
-		} catch (RemoteException e) {
-			e.printStackTrace();
-		} catch (Exception e) {
-			// TODO Service is connected, but communication is not connected.
-			Log.e(TAG, "sendMessageToCompetitor fail: " + e);
-		}
+	@Override
+	public void onReceiveMessage(byte[] msg, User sendUser) {
+		handleMessage(msg, sendUser);
 	}
 
-	private boolean connectCommunicationService() {
-		mServiceConnection = new ServiceConnection() {
-
-			public void onServiceDisconnected(ComponentName name) {
-				try {
-					mCommunication
-							.unRegistListenr(mCommunicationListenerExternal);
-				} catch (RemoteException e) {
-					e.printStackTrace();
-				}
-
-			}
-
-			public void onServiceConnected(ComponentName name, IBinder service) {
-				mCommunication = Communication.Stub.asInterface(service);
-				try {
-					mCommunication.registListenr(
-							mCommunicationListenerExternal, mAppId);
-					onCommunicationReady();
-				} catch (RemoteException e) {
-					e.printStackTrace();
-				}
-			}
-
-		};
-		Intent communicateIntent = new Intent(INTENT_STRING);
-		return bindService(communicateIntent, mServiceConnection,
-				Context.BIND_AUTO_CREATE);
+	@Override
+	public void onUserConnected(User user) {
+		Log.d(TAG, "onUserConnected() " + user);
 	}
 
-	private void disconnectService() {
-		if (mCommunication != null) {
-			try {
-				mCommunication.unRegistListenr(mCommunicationListenerExternal);
-			} catch (RemoteException e) {
-				e.printStackTrace();
-			}
+	@Override
+	public void onUserDisconnected(User user) {
+		Log.d(TAG, "onUserDisconnected() " + user);
+	}
+
+	@Override
+	public void onCommunicationConnected() {
+		if (!checkCommunicationConnection()) {
+			Toast.makeText(mContext, "无网络连接，请先建立连接后再启动游戏。", Toast.LENGTH_LONG)
+					.show();
 		}
-		if (mServiceConnection != null) {
-			unbindService(mServiceConnection);
+		// Search other players.
+		byte[] searchData = ProtocolEncoder.encodeSearchOtherPlayers();
+		sendMessageToAllCompetitor(searchData);
+		// Tell other players we join the game
+		byte[] joinData = ProtocolEncoder.encodeJoinGame();
+		sendMessageToAllCompetitor(joinData);
+
+		mLocalPlayer = mCommunicationManager.getLocalUser();
+		if (mLocalPlayer != null) {
+			addPlayer(mLocalPlayer);
+		} else {
+			Log.e(TAG, "onCommunicationReady get local user fail. ");
 		}
 	}
 
-	private OnCommunicationListenerExternal mCommunicationListenerExternal = new OnCommunicationListenerExternal.Stub() {
-
-		@Override
-		public void onUserDisconnected(User user) throws RemoteException {
-
-		}
-
-		@Override
-		public void onUserConnected(User user) throws RemoteException {
-
-		}
-
-		@Override
-		public void onReceiveMessage(byte[] msg, User sendUser)
-				throws RemoteException {
-			handleMessage(msg, sendUser);
-		}
-	};
+	@Override
+	public void onCommunicationDisconnected() {
+		Log.d(TAG, "onCommunicationDisconnected");
+	}
 	// Communication Service end
-
 }

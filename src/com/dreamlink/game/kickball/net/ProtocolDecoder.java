@@ -5,8 +5,8 @@ import java.io.DataInputStream;
 import java.io.IOException;
 import java.util.Arrays;
 
-import com.dreamlink.aidl.User;
-import com.dreamlink.game.kickball.util.ArrayUtil;
+import com.dreamlink.communication.aidl.User;
+import com.dreamlink.communication.lib.util.ArrayUtil;
 
 import android.util.Log;
 
