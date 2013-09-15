@@ -317,6 +317,7 @@ public class MainActivity extends Activity implements BallCallback,
 		if (!checkCommunicationConnection()) {
 			Toast.makeText(mContext, "无网络连接，请先建立连接后再启动游戏。", Toast.LENGTH_LONG)
 					.show();
+			return;
 		}
 		// Search other players.
 		byte[] searchData = ProtocolEncoder.encodeSearchOtherPlayers();
